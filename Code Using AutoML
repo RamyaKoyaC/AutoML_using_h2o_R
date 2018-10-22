@@ -1,0 +1,65 @@
+library(tictoc)
+tic()
+setwd("enter your working directory path here")
+library(h2o)
+localH2o <-h2o.init(ice_root="enter a path to store", 
+                    nthreads=-1, max_mem_size="30g")
+h2o.init() #Initializing h2o here. 
+cancer_data <- read.csv("enter the path of your dataset")
+cancer_data$X<-NULL
+str(cancer_data)
+cancer_data<-cancer_data[1:500,] # out of the million instances, considering only the first 500 
+cancer_data$age <- factor(cancer_data$age)
+is.factor(cancer_data[,1])
+cancer_data$menopause <- factor(cancer_data$menopause)
+is.factor(cancer_data[,2])
+cancer_data$tumor.size <- factor(cancer_data$tumor.size)
+is.factor(cancer_data[,3])
+cancer_data$inv.nodes <- factor(cancer_data$inv.nodes)
+is.factor(cancer_data[,4])
+cancer_data$node.caps <- factor(cancer_data$node.caps)
+is.factor(cancer_data[,5])
+cancer_data$deg.malig <- factor(cancer_data$deg.malig)
+is.factor(cancer_data[,6])
+cancer_data$breast <- factor(cancer_data$breast)
+is.factor(cancer_data[,7])
+cancer_data$breast.quad <- factor(cancer_data$breast.quad)
+is.factor(cancer_data[,8])
+cancer_data$irradiat <- factor(cancer_data$irradiat)
+is.factor(cancer_data[,9])
+cancer_data$Class <- factor(cancer_data$Class)
+is.factor(cancer_data[,10])
+
+cancer_data.hex  <- as.h2o(cancer_data)
+split_h2o <- h2o.splitFrame(cancer_data.hex, c(0.6, 0.2), seed = 1234 )
+train_cancer_h2o <- h2o.assign(split_h2o[[1]], "train" ) # 60%
+valid_cancer_h2o <- h2o.assign(split_h2o[[2]], "valid" ) # 20%
+test_cancer_h2o  <- h2o.assign(split_h2o[[3]], "test" )  # 20%
+
+#Model
+# Set names for h2o
+target <- "Class"
+predictors <- setdiff(names(train_cancer_h2o), target)
+automl_h2o_models <- h2o.automl(
+  x = predictors, 
+  y = target,
+  training_frame    = train_cancer_h2o,
+  leaderboard_frame = valid_cancer_h2o
+)
+automl_leader.2 <- automl_h2o_models@leader
+
+model_path.2<-h2o.saveModel(object=automl_leader.2, path=getwd(), force=TRUE)
+automl_leader.2
+cancer.load=h2o.loadModel(model_path.2)
+pred_Class2 <- h2o.predict(object = automl_leader.2, newdata = test_cancer_h2o)
+pred_Class2
+
+canc.pred<-as.data.frame(pred_Class2)
+canc.pred
+h2o.partialPlot(object = automl_leader.2, data = cancer_data.hex, cols = c("age"))
+h2o.partialPlot(object = automl_leader.2, data = cancer_data.hex, cols = c("deg.malig"))
+h2o.partialPlot(object = automl_leader.2, data = cancer_data.hex, cols = c("breast"))
+
+save.image("enter a path to storage the image of your workspace")
+toc()
+h2o.shutdown()
